@@ -1,0 +1,188 @@
+create table student(
+student_id serial primary key,
+first_name varchar,
+lastname varchar,
+gender char,
+DOB date,
+email varchar,
+phone varchar,
+address varchar
+)
+insert into student(first_name,lastname,gender,DOB,email,phone,address)
+values('namratha','achar','F','2002-04-12','namratha@gmail.com',8792553151,'mysore'),
+('varshitha','varshi','F','2003-4-13','varshitha@gmail.com',7829376489,'chitradurga'),
+('sahana','gowda','F','2001-5-3','sahana@gmail.com',5488761258,'banglore'),
+('deekshitha','deekshi','F','2003-4-17','deekshi@gmail.com',7469543245,'magadi'),
+('kavana','gowda','F','2001-8-23','kavana@gmail.com',3547612576,'mandya'),
+('raghavendra','gowda','M','2002-12-30','ragha@gmail.com',7452369874,'mandya'),
+('sneha','H L','F','2001-9-16','sneha@gmail.com',21478963254,'pandavapura'),
+('ravi','kumar','M','2003-10-8','ravi@gmail.com',4563217896,'patna'),
+('manoj','M urs','M','2002-4-24','manu@gmail.com',1204563987,'mysore'),
+('raaghu','nammu','M','2001-12-30','raghu@gmail.com',9353060710,'banglore')
+
+select * from student
+
+
+create table course3(
+course_id serial primary key,
+course_name varchar,
+credits int,
+department varchar unique
+)
+insert into course3(course_name,credits,department)
+values('HTML',4,'front-end'),
+('java',5,'back-end'),
+('postgresql',5,'database'),
+('reat',5,'framework')
+select * from course3
+
+
+create table professor_table3(
+prof_id serial primary key,
+prof_name varchar,
+email varchar unique,
+department varchar,
+foreign key (department) references course3(department)
+)
+
+insert into professor_table3(prof_name,email,department)
+values('Dr.mehta','mehta@gmail.com','front-end'),
+('Dr.mehta','meht@gmail.com','front-end'),
+('rohan','rohan@gmail.com','back-end'),
+('charan','charan@gmail.com','framework')
+
+select * from professor_table3
+
+
+create table enrollment2(
+enroll_id serial primary key,
+student_id int,
+foreign key (student_id) references student(student_id),
+course_id int,
+foreign key (course_id) references course3(course_id),
+prof_id int,
+foreign key (prof_id) references professor_table3(prof_id),
+enrollment_date date,
+grade char
+)
+
+insert into enrollment2(student_id,course_id,prof_id,enrollment_date,grade)
+values(1,1,5,'2025-4-12','A'),
+(1,2,6,'2025-5-25','B'),
+(2,1,5,'2025-5-28','A'),
+(3,2,8,'2022-6-30','B')
+
+1 Find the names of professors teaching courses in the CSE department.
+
+select p.prof_name
+from professor_table3 p
+join enrollment2 e on p.prof_id = e.prof_id
+join course3 c on e.course_id = c.course_id
+where c.department = 'front-end';
+
+
+2 Find the students who got the highest grade in each course.
+
+SELECT s.first_name, s.lastname, c.course_name, e.grade
+FROM enrollment2 e
+JOIN student s ON e.student_id = s.student_id
+JOIN course3 c ON e.course_id = c.course_id
+WHERE e.grade = (
+    SELECT MIN(e2.grade)   -- A is alphabetically smaller than B, so use MIN
+    FROM enrollment2 e2
+    WHERE e2.course_id = e.course_id
+)
+
+3 Retrieve the student(s) with the maximum number of enrollments.
+
+SELECT s.first_name, s.lastname, COUNT(e.course_id) AS total_enrollments
+FROM student s
+JOIN enrollment2 e ON s.student_id = e.student_id
+GROUP BY s.student_id, s.first_name, s.lastname
+ORDER BY total_enrollments DESC
+LIMIT 1;
+
+4 Find the professor who teaches the maximum number of students.
+
+SELECT p.prof_name, COUNT(DISTINCT e.student_id) AS total_students
+FROM professor_table3 p
+JOIN enrollment2 e ON p.prof_id = e.prof_id
+GROUP BY p.prof_id, p.prof_name
+ORDER BY total_students DESC
+LIMIT 1;
+
+5 List students who have enrolled in all courses taught by Dr. Mehta.
+
+SELECT s.first_name, s.lastname
+FROM student s
+JOIN enrollment2 e ON s.student_id = e.student_id
+JOIN professor_table3 p ON e.prof_id = p.prof_id
+WHERE p.prof_name = 'Dr.mehta'
+GROUP BY s.student_id, s.first_name, s.lastname
+HAVING COUNT(DISTINCT e.course_id) = (
+    SELECT COUNT(DISTINCT e2.course_id)
+    FROM enrollment2 e2
+    JOIN professor_table3 p2 ON e2.prof_id = p2.prof_id
+    WHERE p2.prof_name = 'Dr.mehta'
+);
+
+6 Display the names of students who scored above the average grade in the Database course.
+
+SELECT s.first_name, s.lastname, e.grade
+FROM student s
+JOIN enrollment2 e ON s.student_id = e.student_id
+JOIN course3 c ON e.course_id = c.course_id
+WHERE c.course_name = 'java'
+  AND CASE e.grade
+        WHEN 'A' THEN 4
+        WHEN 'B' THEN 3
+        WHEN 'C' THEN 2
+        WHEN 'D' THEN 1
+      END >
+      (SELECT AVG(
+          CASE e2.grade
+            WHEN 'A' THEN 4
+            WHEN 'B' THEN 3
+            WHEN 'C' THEN 2
+            WHEN 'D' THEN 1
+          END
+       )
+       FROM enrollment2 e2
+       JOIN course3 c2 ON e2.course_id = c2.course_id
+       WHERE c2.course_name = 'java');
+
+7 Retrieve students along with total credits they are currently enrolled in.
+
+SELECT s.first_name, s.lastname, SUM(c.credits) AS total_credits
+FROM student s
+JOIN enrollment2 e ON s.student_id = e.student_id
+JOIN course3 c ON e.course_id = c.course_id
+GROUP BY s.student_id, s.first_name, s.lastname;
+
+8 Display the student name, course name, professor name, and grade for each enrollment.
+
+SELECT s.first_name || ' ' || s.lastname AS student_name,
+       c.course_name,
+       p.prof_name,
+       e.grade
+FROM enrollment2 e
+JOIN student s ON e.student_id = s.student_id
+JOIN course3 c ON e.course_id = c.course_id
+JOIN professor_table3 p ON e.prof_id = p.prof_id;
+
+9 Find the professors who are teaching more than one course.
+
+SELECT p.prof_name, COUNT(DISTINCT e.course_id) AS total_courses
+FROM professor_table3 p
+JOIN enrollment2 e ON p.prof_id = e.prof_id
+GROUP BY p.prof_id, p.prof_name
+HAVING COUNT(DISTINCT e.course_id) > 1;
+
+10 Show the students who are taking courses from multiple departments.
+
+SELECT s.first_name, s.lastname, COUNT(DISTINCT c.department) AS dept_count
+FROM student s
+JOIN enrollment2 e ON s.student_id = e.student_id
+JOIN course3 c ON e.course_id = c.course_id
+GROUP BY s.student_id, s.first_name, s.lastname
+HAVING COUNT(DISTINCT c.department) > 1;
